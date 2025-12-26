@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: demo_api
+      POSTGRES_USER: demo_user
+      POSTGRES_PASSWORD: demo_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo_user -d demo_api"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../demo_api
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=demo_api;Username=demo_user;Password=demo_pass;Ssl Mode=Disable
+      JwtSettings__SecretKey: super-secret-key-para-docker-123456
+      JwtSettings__Issuer: demo-api
+      JwtSettings__Audience: demo-ap
+    ports:
+      - "5014:8080"
+    depends_on:
+      - postgres
+
+  front:
+    build:
+      context: ../demo_app
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://api:8080/api
+    ports:
+      - "3002:3002"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
